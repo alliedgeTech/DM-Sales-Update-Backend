@@ -12,8 +12,10 @@ const itemsRouters = require("./routes/companyWiseItemRouters");
 const sellRouters = require("./routes/sellRoutes");
 const purchaseRouters = require("./routes/purchaseRoutes");
 const stockRouters = require("./routes/stockRoutes");
+const { enterFinalcialYearInAllData } = require("./controller/sellController")
 
 // enable statements
+// enterFinalcialYearInAllData()
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 app.use(cors())

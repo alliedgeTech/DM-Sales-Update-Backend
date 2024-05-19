@@ -5,13 +5,17 @@ const histroySchema = require("../models/histroySchema");
 const sellAmountHistorySchma = require("../models/sellHistorySchema");
 const sellHistorySchema = require("../models/sellHistorySchema");
 const sellSchema = require("../models/sellSchema");
-const purchaseModel = require("../models/purchaseSchema")
+const purchaseModel = require("../models/purchaseSchema");
+const { getFinancialYearRange } = require("../utils/common");
 
 module.exports.addSell = async (request, response) => {
     try {
         var data = request.body;
         const history = [];
         const stockData = await stockSchema.find({});
+
+        data.sellbillno += `/${getFinancialYearRange(data.date)}`
+         
         data.items = data.items.map((item) => {
             delete item.id;
             const stock = stockData.find(stock => stock.companyId.toString() === item.companyId && stock.itemId.toString() === item.itemId)
@@ -36,7 +40,6 @@ module.exports.addSell = async (request, response) => {
         data.total = data.items.reduce((accumulator, currentValue) => {
             return accumulator + (currentValue.price * currentValue.qty);
         }, 0)
-
         const res = await sellModel.create(data);
         await stockController.removeStocks(data.items)
         await histroySchema.insertMany(history)
@@ -45,6 +48,7 @@ module.exports.addSell = async (request, response) => {
             data: res,
         });
     } catch (error) {
+        console.log('this is error while adding the sell : ',error,error.message);
         response.status(500).json({
             message: "Error while adding sell.",
             data: error,
@@ -71,6 +75,31 @@ module.exports.getSell = async (request, response) => {
         });
     }
 };
+
+module.exports.enterFinalcialYearInAllData = async() => {
+    try {
+        let data = await sellModel.find();
+
+        data = data.map((item) => {
+            item.sellbillno += `/${getFinancialYearRange(item.date)}` 
+            return item;
+        });
+
+        const promiseArray = [];
+
+        for(let i of data){
+            promiseArray.push(sellModel.findByIdAndUpdate(i._id,i));
+        }
+
+        const resolvedPromise = await Promise.allSettled(promiseArray);
+
+        console.log("this is data is updated : ",JSON.stringify(resolvedPromise,null,2));
+
+        console.log('work is done');
+    } catch (error) {
+        console.log("this is got someting error : ",error.message);
+    }
+}
 
 // module.exports.deleteSell = async (request, response) => {
 //     try {
@@ -292,8 +321,23 @@ module.exports.getSellWisePriceHistory = (async (request, response) => {
 
 module.exports.getsellBillNumber = (async (request, response) => {
     try {
+
+        const { number,date } = request.body.data;
+
+
+        console.log('number date :' ,number,date);
+
+        const sellBillNo = `${number}/${getFinancialYearRange(date)}`
+
+        console.log('this is all sellmodels ',);
+
+        console.log("this is sellbill no : ",sellBillNo);
+
         const res = await sellModel
-            .find({ sellbillno: request.body.data });
+            .find({ sellbillno: { $eq: sellBillNo} });
+
+        console.log("res",JSON.stringify(res,null,2));
+
         if (res.length === 0) {
             response.status(200).json({
                 message: "Data retrived succesfully.",
